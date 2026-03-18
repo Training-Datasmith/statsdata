@@ -63,9 +63,7 @@ class statsdata extends Module
             $html .= $this->displayConfirmation($this->trans('Settings updated', [], 'Admin.Global'));
         }
 
-        $html .= $this->renderForm();
-
-        return $html;
+        return $html . $this->renderForm();
     }
 
     public function hookDisplayBeforeBodyClosingTag($params)
@@ -76,7 +74,7 @@ class statsdata extends Module
         return $script_content_plugins . $script_content_pages_views;
     }
 
-    private function getScriptPlugins($params)
+    private function getScriptPlugins(array $params)
     {
         if (!isset($params['cookie']->id_guest)) {
             Guest::setNewGuest($params['cookie']);
@@ -103,7 +101,7 @@ class statsdata extends Module
 						navinfo.id_guest = "' . (int) $params['cookie']->id_guest . '";
 						navinfo.token = "' . $token . '";
 						navinfo.ajax = "1";
-						$.post("' . Context::getContext()->link->getPageLink('statistics', (bool) (Tools::getShopProtocol() == 'https://')) . '", navinfo);
+						$.post("' . Context::getContext()->link->getPageLink('statistics', Tools::getShopProtocol() == 'https://') . '", navinfo);
 					});
 				</script>';
             }
@@ -112,7 +110,7 @@ class statsdata extends Module
         return '';
     }
 
-    private function getScriptCustomerPagesViews($params)
+    private function getScriptCustomerPagesViews(array $params)
     {
         // Record the guest path then increment the visit counter of the page
         $token_array = Connection::setPageConnection($params['cookie']);
@@ -140,7 +138,7 @@ class statsdata extends Module
 					pagetime.append("token", "' . $token . '");
 					pagetime.append("time", time_end-time_start);
 					pagetime.append("ajax", "1");
-					navigator.sendBeacon("' . Context::getContext()->link->getPageLink('statistics', (bool) (Tools::getShopProtocol() == 'https://')) . '", pagetime);
+					navigator.sendBeacon("' . Context::getContext()->link->getPageLink('statistics', Tools::getShopProtocol() == 'https://') . '", pagetime);
 				});
 			</script>';
         }
@@ -253,7 +251,7 @@ class statsdata extends Module
         $helper->table = $this->table;
         $lang = new Language((int) Configuration::get('PS_LANG_DEFAULT'));
         $helper->default_form_language = $lang->id;
-        $helper->allow_employee_form_lang = Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG') ? Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG') : 0;
+        $helper->allow_employee_form_lang = Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG') ?: 0;
         $helper->identifier = $this->identifier;
         $helper->submit_action = 'submitStatsData';
         $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', false) . '&configure=' . $this->name . '&tab_module=' . $this->tab . '&module_name=' . $this->name;
