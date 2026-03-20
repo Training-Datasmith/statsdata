@@ -47,6 +47,16 @@ class statsdata extends Module
         $this->ps_versions_compliancy = ['min' => '1.7.1.0', 'max' => _PS_VERSION_];
     }
 
+    /**
+     * Install the module and register all required hooks.
+     *
+     * Hooks registered:
+     *   displayBeforeBodyClosingTag — injects tracking script
+     *   actionAuthentication        — logs authentication events
+     *   actionCustomerAccountAdd    — logs new account registrations
+     *
+     * @return bool True on successful installation, false otherwise
+     */
     public function install()
     {
         return parent::install()
