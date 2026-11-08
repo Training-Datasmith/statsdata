@@ -19,7 +19,9 @@ restore_module() {
 }
 trap restore_module EXIT
 
-perl -0pi -e 's/\(int\) \$params\[\x27cookie\x27\]->id_customer/\$params[\x27cookie\x27]->id_customer/g' "$MODULE"
+if [[ "${STATSDATA_SKIP_MUTATION:-0}" != "1" ]]; then
+  perl -0pi -e 's/\(int\) \$params\[\x27cookie\x27\]->id_customer/\$params[\x27cookie\x27]->id_customer/g' "$MODULE"
+fi
 
 USE_SUDO_DOCKER="${USE_SUDO_DOCKER:-0}"
 DOCKER_EXE="${DOCKER_BIN:-docker}"
@@ -29,7 +31,6 @@ else
   DOCKER_BIN="${DOCKER_EXE}"
 fi
 
-# Reuse verified PHAR + DB from run-suite by delegating to a one-off phpunit filter run.
 SUITE_TMP="$(mktemp -d)"
 chmod 0700 "$SUITE_TMP"
 cleanup_tmp() {
@@ -83,19 +84,14 @@ ${DOCKER_BIN} exec "$CID" mariadb -uroot -proot-secret -e \
   "ALTER USER 'statsdata'@'%' IDENTIFIED VIA mysql_native_password USING PASSWORD('statsdata'); FLUSH PRIVILEGES;"
 
 XML="${SUITE_TMP}/mutation.xml"
-cat >"$XML" <<EOF
+cat >"$XML" <<'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
-<phpunit bootstrap="${WORK}/tests/phpunit/bootstrap.php" colors="false" stopOnFailure="true">
+<phpunit bootstrap="/work/tests/phpunit/bootstrap.php" colors="false" stopOnFailure="true">
   <testsuites>
     <testsuite name="module-tests">
-      <file>${WORK}/tests/phpunit/StatsdataAuthenticationTest.php</file>
+      <file>/work/tests/phpunit/StatsdataAuthenticationTest.php</file>
     </testsuite>
   </testsuites>
-  <filter>
-    <whitelist>
-      <file>${WORK}/statsdata.php</file>
-    </whitelist>
-  </filter>
 </phpunit>
 EOF
 
@@ -123,17 +119,17 @@ if [[ "$CODE" -eq 0 ]]; then
   exit 1
 fi
 
-if echo "$OUTPUT" | grep -qE '^(Tests|ERRORS|FAILURES)!'; then
-  :
-elif echo "$OUTPUT" | grep -q 'FAILURES!'; then
-  :
-else
-  # PHPUnit 4 prints failure details without always using ERRORS!
-  if ! echo "$OUTPUT" | grep -q 'Failed asserting'; then
-    echo "Mutation proof failed: non-assertion failure (setup/parse?)" >&2
+if ! echo "$OUTPUT" | grep -q 'Failed asserting'; then
+  echo "Mutation proof failed: expected assertion failure" >&2
+  exit 1
+fi
+
+for forbidden in 'Errors:' 'PDOException' 'Cannot open file' 'Parse error'; do
+  if echo "$OUTPUT" | grep -qF "$forbidden"; then
+    echo "Mutation proof failed: forbidden token in output: ${forbidden}" >&2
     exit 1
   fi
-fi
+done
 
 echo "Mutation proof passed."
 exit 0

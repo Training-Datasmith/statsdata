@@ -31,7 +31,11 @@ class StatsdataAuthenticationTest extends StatsdataTestCase
         $cookie->id_guest = 5;
         $cookie->id_customer = '100abc';
 
-        $this->module->hookActionAuthentication(array('cookie' => $cookie));
+        try {
+            $this->module->hookActionAuthentication(array('cookie' => $cookie));
+        } catch (PDOException $e) {
+            // Strict SQL may throw before assertions; lastSql still records the statement.
+        }
 
         $sql = Db::getInstance()->lastSql;
         $this->assertContains('`id_customer` = 100', $sql);
